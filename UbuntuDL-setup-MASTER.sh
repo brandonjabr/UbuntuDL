@@ -1,3 +1,7 @@
+# A modified version of Vu Manh Tu's install script for Caffe to optimize compatibility with latest NVIDIA GPUs
+# and add installation of Tensorflow, Keras, Theano, Pytorch, and Torch7.
+# (His version can be found at https://github.com/BVLC/caffe/wiki/Caffe-installing-script-for-ubuntu-16.04---support-Cuda-8) 
+
 # Add Nvidia's cuda repository
 if [ ! -f "/tmp/cudnn-8.0-linux-x64-v5.1.tgz" ] ; then
   echo "You need to download CUDNN v5.1 for CUDA 8.0 and put cudnn-8.0-linux-x64-v5.1.tgz in /tmp"
