@@ -1,5 +1,6 @@
 # Add Nvidia's cuda repository
 if [ ! -f "/tmp/cudnn-8.0-linux-x64-v5.1.tgz" ] ; then
+  echo "You need to download CUDNN v5.1 for CUDA 8.0 and put cudnn-8.0-linux-x64-v5.1.tgz in /tmp"
   exit 1;
 fi
 wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-repo-ubuntu1604_8.0.61-1_amd64.deb
@@ -33,8 +34,8 @@ sudo apt-get clean
 # Optionally, download your own cudnn; requires registration.  
 if [ -f "/tmp/cudnn-8.0-linux-x64-v5.1.tgz" ] ; then
   tar -xvf /tmp/cudnn-8.0-linux-x64-v5.1.tgz -C /tmp
-  sudo cp -P /tmp/cuda/lib64 /usr/local/cuda/lib64
-  sudo cp /tmp/cuda/include /usr/local/cuda/include
+  sudo cp -P /tmp/cuda/lib64/* /usr/local/cuda/lib64
+  sudo cp /tmp/cuda/include/* /usr/local/cuda/include
 fi
 # Need to put cuda on the linker path.  This may not be the best way, but it works.
 sudo sh -c "sudo echo '/usr/local/cuda/lib64' > /etc/ld.so.conf.d/cuda_hack.conf"
@@ -63,10 +64,24 @@ sed -i '/^PYTHON_INCLUDE/a    /usr/local/lib/python2.7/dist-packages/numpy/core/
 sudo ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial.so.10.1.0 /usr/lib/x86_64-linux-gnu/libhdf5.so
 sudo ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial_hl.so.10.0.2 /usr/lib/x86_64-linux-gnu/libhdf5_hl.so
 
-# And finally build!
+# Build / Test Caffe (this might take 10-15 minutes)
 make -j 8 all py
 
 make -j 8 test
 make runtest
 
-echo "export PYTHONPATH=/home/brandonjabr/caffe/python:$PYTHONPATH" >> ~/.bashrc
+echo "export PYTHONPATH=/home/ubuntu/caffe/python:$PYTHONPATH" >> ~/.bashrc
+
+# Install Theano, Keras, PyTorch
+sudo pip install Theano
+sudo pip install keras
+
+sudo pip install http://download.pytorch.org/whl/cu80/torch-0.1.12.post2-cp27-none-linux_x86_64.whl 
+sudo pip install torchvision
+
+# Finally, install Torch7
+git clone https://github.com/torch/distro.git ~/torch --recursive
+cd ~/torch; bash install-deps;
+./install.sh
+
+source ~/.bashrc
