@@ -1,10 +1,18 @@
-# A modified version of Vu Manh Tu's install script for Caffe to optimize compatibility with latest NVIDIA GPUs
-# and add installation of Tensorflow, Keras, Theano, Pytorch, and Torch7.
-# (His version can be found at https://github.com/BVLC/caffe/wiki/Caffe-installing-script-for-ubuntu-16.04---support-Cuda-8) 
+# This script allows you to quickly install Tensorflow, Caffe, Keras and Pytorch all with GPU support for the newest NVIDIA Pascal GPUs on a clean Ubuntu 16.04 install. It installs CUDA 8.0 and CUDNN 5.1 while taking care of many dependency issues that
+# are usually encountered during installation on Ubuntu 16.04 machines. It is heavily based on Vu Manh Tu's excellent script (https://github.com/BVLC/caffe/wiki/Caffe-installing-script-for-ubuntu-16.04---support-Cuda-8), the main difference being the addition of
+# Keras, Pytorch, and a special version of Caffe that includes additional layers required for compiling the state-of-the-art BVLC VQA model (found here https://github.com/akirafukui/vqa-mcb).
+
+# INSTRUCTIONS BEFORE INSTALL -- You MUST start on a freshly install Ubuntu 16.04 machine. First, download CUDNN-5.1 for CUDA 8.0 from https://developer.nvidia.com/cudnn (requires registration). Copy the downloaded file 'cudnn-8.0-linux-x64-v5.1.tgz' to /tmp.
+# With this script in your home directory, run sudo chmod +x ~/UbuntuDL-setup-MASTER.sh, and finally run the script with  ./UbuntuDL-setup-MASTER.sh. Once finished, reboot your computer, and run the following command to finish the Caffe setup:
+# echo "export PYTHONPATH=/home/YOUR_USERNAME/caffe/python:$PYTHONPATH" >> ~/.bashrc (replace YOUR_USERNAME with your username).
+
+# To check if everything went OK, run python and try running 'import tensorflow as tf', 'import caffe', 'import keras' and 'import torch' -- please report issues on the git repo, if your install is successful, feel free to share your specs so
+# that everyone can get more info on compatible NVIDIA cards, thank you!
+
+# Tested successfully on Ubuntu 16.04 LTS w/ NVIDIA GTX 1080 Ti (Pascal Architecture) 
 
 # Add Nvidia's cuda repository
 if [ ! -f "/tmp/cudnn-8.0-linux-x64-v5.1.tgz" ] ; then
-  echo "You need to download CUDNN v5.1 for CUDA 8.0 and put cudnn-8.0-linux-x64-v5.1.tgz in /tmp"
   exit 1;
 fi
 wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-repo-ubuntu1604_8.0.61-1_amd64.deb
@@ -38,15 +46,29 @@ sudo apt-get clean
 # Optionally, download your own cudnn; requires registration.  
 if [ -f "/tmp/cudnn-8.0-linux-x64-v5.1.tgz" ] ; then
   tar -xvf /tmp/cudnn-8.0-linux-x64-v5.1.tgz -C /tmp
-  sudo cp -P /tmp/cuda/lib64/* /usr/local/cuda/lib64
-  sudo cp /tmp/cuda/include/* /usr/local/cuda/include
+  sudo cp -P /tmp/cuda/lib64 /usr/local/cuda/lib64
+  sudo cp /tmp/cuda/include /usr/local/cuda/include
 fi
 # Need to put cuda on the linker path.  This may not be the best way, but it works.
 sudo sh -c "sudo echo '/usr/local/cuda/lib64' > /etc/ld.so.conf.d/cuda_hack.conf"
 sudo ldconfig /usr/local/cuda/lib64
 
 
-# Get caffe, and install python requirements
+# REBOOT SUGGESTED HERE -- I recommend running 'sudo shutdown -r now' at this point, not always neccessary but may solve errors due to NVIDIA graphic-drivers.
+
+
+#Install tensorflow-gpu
+sudo pip install --upgrade tensorflow-gpu
+
+# Install Keras
+sudo pip install keras
+
+# Install Pytorch
+sudo pip install http://download.pytorch.org/whl/cu80/torch-0.1.12.post2-cp27-none-linux_x86_64.whl 
+sudo pip install torchvision
+
+
+# Get caffe w/ additional layers -- install Caffe python requirements
 git clone https://github.com/akirafukui/caffe.git
 cd caffe
 git fetch
@@ -54,7 +76,7 @@ git checkout feature/20160617_cb_softattention
 cd python
 for req in $(cat requirements.txt); do sudo pip install $req; done
 
-# Prepare Makefile.config so that it can build on aws
+# Prepare Makefile.config
 cd ../
 cp Makefile.config.example Makefile.config
 if [ -f "../cudnn-8.0-linux-x64-v5.1.tgz" ] ; then
@@ -68,24 +90,8 @@ sed -i '/^PYTHON_INCLUDE/a    /usr/local/lib/python2.7/dist-packages/numpy/core/
 sudo ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial.so.10.1.0 /usr/lib/x86_64-linux-gnu/libhdf5.so
 sudo ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial_hl.so.10.0.2 /usr/lib/x86_64-linux-gnu/libhdf5_hl.so
 
-# Build / Test Caffe (this might take 10-15 minutes)
+# Finally, build Caffe -- (NOTE: Building Caffe is notoriously difficult on 16.04 machines w/ newer Pascal-based NVIDIA cards, if you get errors please let me know so I can keep improving this script - Thanks!)
 make -j 8 all py
 
 make -j 8 test
 make runtest
-
-echo "export PYTHONPATH=/home/ubuntu/caffe/python:$PYTHONPATH" >> ~/.bashrc
-
-# Install Theano, Keras, PyTorch
-sudo pip install Theano
-sudo pip install keras
-
-sudo pip install http://download.pytorch.org/whl/cu80/torch-0.1.12.post2-cp27-none-linux_x86_64.whl 
-sudo pip install torchvision
-
-# Finally, install Torch7
-git clone https://github.com/torch/distro.git ~/torch --recursive
-cd ~/torch; bash install-deps;
-./install.sh
-
-source ~/.bashrc
